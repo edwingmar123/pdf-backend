@@ -1,0 +1,19 @@
+{
+    "name": "cv-generator",
+    "version": "1.0.0",
+    "description": "Generador de CV desde plantilla DOCX",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "body-parser": "^2.2.0",
+        "docxtpl": "^1.0.0",
+        "express": "^4.21.2",
+        "multer": "^1.4.5-lts.1",
+        "pizzip": "^3.1.8"
+    },
+    "author": "",
+    "license": "ISC"
+}
