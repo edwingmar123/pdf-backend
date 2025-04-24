@@ -10,6 +10,7 @@ app.use(express.json());
 app.post("/generar-cv", (req, res) => {
   try {
     const data = req.body;
+    console.log("Datos recibidos:", JSON.stringify(data, null, 2));
 
     const templatePath = path.join(__dirname, "plantilla_cv.docx");
     const content = fs.readFileSync(templatePath, "binary");
