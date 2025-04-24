@@ -12,7 +12,7 @@ app.post("/generar-cv", (req, res) => {
     const data = req.body;
     console.log("Datos recibidos:", JSON.stringify(data, null, 2));
 
-    const templatePath = path.join(__dirname, "plantilla_cv_corregida_v2.docx");
+    const templatePath = path.join(__dirname, "plantilla_cv_final_sin_errores");
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
     const doc = new Docxtemplater(zip);
