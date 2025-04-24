@@ -7,7 +7,8 @@ const PizZip = require("pizzip");
 const app = express();
 app.use(express.json());
 
-// Middleware para validar datos básicos
+// Configuración de middleware para validar datos
+app.use(express.urlencoded({ extended: true }));
 app.use("/generar-cv", (req, res, next) => {
   if (!req.body || Object.keys(req.body).length === 0) {
     return res.status(400).json({ error: "Datos del CV no proporcionados" });
@@ -15,65 +16,79 @@ app.use("/generar-cv", (req, res, next) => {
   next();
 });
 
-app.post("/generar-cv", (req, res) => {
+// Función para limpiar y formatear los datos
+const limpiarDatos = (data) => {
+  const result = {};
+
+  Object.keys(data).forEach((key) => {
+    if (typeof data[key] === "string" && data[key].startsWith("=")) {
+      result[key] = data[key].substring(1);
+    } else if (typeof data[key] === "object" && data[key] !== null) {
+      result[key] = JSON.parse(JSON.stringify(data[key]));
+    } else {
+      result[key] = data[key] || "No especificado";
+    }
+  });
+
+  return result;
+};
+
+app.post("/generar-cv", async (req, res) => {
   try {
-    const data = req.body;
-    console.log("Datos recibidos:", JSON.stringify(data, null, 2));
+    // 1. Limpiar y formatear los datos de entrada
+    const rawData = req.body;
+    console.log("Datos recibidos:", rawData);
 
-    // 1. Validar y completar datos faltantes
-    const processedData = {
-      nombre: data.nombre || "No especificado",
-      email: data.email || "No especificado",
-      telefono: data.telefono || "No especificado",
-      // ... completar con todos los campos necesarios
-      experiencias: Array.isArray(data.experiencias) ? data.experiencias : [],
-      educaciones: Array.isArray(data.educaciones) ? data.educaciones : [],
-      idiomas: Array.isArray(data.idiomas) ? data.idiomas : [],
-    };
+    const data = limpiarDatos(rawData);
+    console.log("Datos procesados:", data);
 
-    // 2. Ruta del template con verificación
+    // 2. Cargar la plantilla
     const templatePath = path.join(
       __dirname,
       "plantilla_cv_final_sin_errores.docx"
     );
 
-    // Verificar si el archivo existe antes de intentar leerlo
     if (!fs.existsSync(templatePath)) {
-      throw new Error(
-        `El archivo de plantilla no existe en la ruta: ${templatePath}`
-      );
+      throw new Error(`Archivo de plantilla no encontrado en: ${templatePath}. 
+        Directorio actual: ${__dirname}. 
+        Archivos disponibles: ${fs.readdirSync(__dirname).join(", ")}`);
     }
 
-    // 3. Procesar el documento
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
+
+    // 3. Configurar docxtemplater (versión actualizada)
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
     });
 
-    // Configurar manejo de errores de docxtemplater
-    doc.setData(processedData);
+    // Reemplazar el método obsoleto setData
+    doc.compile();
+    doc
+      .resolveData(data)
+      .then(() => {
+        doc.render();
 
-    try {
-      doc.render();
-    } catch (error) {
-      console.error("Error al renderizar el documento:", error);
-      throw new Error("Error al procesar la plantilla del CV");
-    }
+        const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
-    const buffer = doc.getZip().generate({ type: "nodebuffer" });
+        res.set({
+          "Content-Type":
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "Content-Disposition": "attachment; filename=CV_Generado.docx",
+        });
 
-    // 4. Configurar respuesta
-    res.set({
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": "attachment; filename=CV_Generado.docx",
-    });
-
-    res.send(buffer);
+        res.send(buffer);
+      })
+      .catch((error) => {
+        console.error("Error al procesar plantilla:", error);
+        res.status(500).json({
+          error: "Error al procesar la plantilla",
+          detalle: error.message,
+        });
+      });
   } catch (error) {
-    console.error("Error generando CV:", error);
+    console.error("Error general:", error);
     res.status(500).json({
       error: "Error al generar el CV",
       detalle: error.message,
@@ -81,12 +96,15 @@ app.post("/generar-cv", (req, res) => {
         __dirname,
         "plantilla_cv_final_sin_errores.docx"
       ),
+      directorioActual: __dirname,
+      archivosDisponibles: fs.readdirSync(__dirname),
     });
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
   console.log(`Ruta actual: ${__dirname}`);
+  console.log(`Archivos disponibles: ${fs.readdirSync(__dirname).join(", ")}`);
 });
