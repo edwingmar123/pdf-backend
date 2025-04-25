@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.post("/generar-cv", async (req, res) => {
+app.post("/generar-cv", (req, res) => {
   try {
     const rawData = req.body;
     console.log("Datos recibidos:", rawData);
@@ -74,10 +74,9 @@ app.post("/generar-cv", async (req, res) => {
       foto: data.foto || data.secure_url || ""
     };
 
-    doc.compile();
-    await doc.resolveData(templateData);
+    // Renderizar directamente sin .resolveData()
+    doc.render(templateData);
 
-    doc.render();
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
@@ -102,7 +101,7 @@ app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
 
-// Función de limpieza (puedes ajustarla según tus necesidades)
+// Función de limpieza
 function limpiarDatos(datos) {
   return datos || {};
 }
