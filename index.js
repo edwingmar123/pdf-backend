@@ -1,13 +1,24 @@
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+const Docxtemplater = require("docxtemplater");
+const PizZip = require("pizzip");
+const cors = require("cors");
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
 app.post("/generar-cv", async (req, res) => {
   try {
-    // 1. Limpiar y formatear los datos de entrada
     const rawData = req.body;
     console.log("Datos recibidos:", rawData);
 
     const data = limpiarDatos(rawData);
     console.log("Datos procesados:", data);
 
-    // 2. Cargar la plantilla
     const templatePath = path.join(__dirname, "plantilla_cv_final_sin_errores.docx");
 
     if (!fs.existsSync(templatePath)) {
@@ -18,16 +29,12 @@ app.post("/generar-cv", async (req, res) => {
 
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
-
-    // 3. Configurar docxtemplater
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
     });
 
-    // Preparar datos específicos para la plantilla
     const templateData = {
-      // Datos personales
       "First name(s) Surname(s)": data.nombre,
       "Replace with house number, street name": data.direccion,
       "[Phone Number]": data.telefono,
@@ -36,67 +43,49 @@ app.post("/generar-cv", async (req, res) => {
       "Sex Enter sex": data.genero,
       "Date of birth dd/mm/yyyy": data.fechaNacimiento,
       "Nationality Enter nationality/-ies": data.nacionalidad,
-      
-      // Puesto y perfil
       "Replace with job applied for": data.puesto,
       "personal statement": data.declaracionPersonal,
-      
-      // Experiencia laboral
-      experiencias: data.experiencias.map(exp => ({
+
+      experiencias: Array.isArray(data.experiencias) ? data.experiencias.map(exp => ({
         "dates (from - to)": exp.fecha,
         "Replace with occupation or position held": exp.puesto,
         "Replace with employer's name and locality": exp.empleador,
         "Replace with main activities and responsibilities": exp.responsabilidades,
         "Business or sector": exp.sector
-      })),
-      
-      // Educación
-      educaciones: data.educaciones.map(edu => ({
+      })) : [],
+
+      educaciones: Array.isArray(data.educaciones) ? data.educaciones.map(edu => ({
         "dates (from - to)": edu.fecha,
         "Replace with qualification awarded": edu.titulo,
         "Replace with education or training organisation's name": edu.institucion,
         "EQF (or other) level": edu.nivel,
         "principal subjects covered": edu.materias,
         "Replace with expected achievements": edu.logros
-      })),
-      
-      // Idiomas
-      idiomas: data.idiomas.map(idio => ({
+      })) : [],
+
+      idiomas: Array.isArray(data.idiomas) ? data.idiomas.map(idio => ({
         "Replace with language": idio.idioma,
         "Enter level": idio.comprension,
         "Replace with name of language certificate": idio.certificado
-      })),
-      
-      // Habilidades
-      "Communication skills": data.habilidades,
-      "Digital skills": "Basado en: " + data.habilidades,
-      
-      // Foto (si existe)
-      foto: data.foto || data.secure_url
+      })) : [],
+
+      "Communication skills": data.habilidades || "",
+      "Digital skills": "Basado en: " + (data.habilidades || ""),
+      foto: data.foto || data.secure_url || ""
     };
 
-    // Procesar la plantilla
     doc.compile();
-    doc.resolveData(templateData)
-      .then(() => {
-        doc.render();
+    await doc.resolveData(templateData);
 
-        const buffer = doc.getZip().generate({ type: "nodebuffer" });
+    doc.render();
+    const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
-        res.set({
-          "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "Content-Disposition": "attachment; filename=CV_Generado.docx",
-        });
+    res.set({
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Disposition": "attachment; filename=CV_Generado.docx",
+    });
 
-        res.send(buffer);
-      })
-      .catch((error) => {
-        console.error("Error al procesar plantilla:", error);
-        res.status(500).json({
-          error: "Error al procesar la plantilla",
-          detalle: error.message,
-        });
-      });
+    res.send(buffer);
   } catch (error) {
     console.error("Error general:", error);
     res.status(500).json({
@@ -108,3 +97,12 @@ app.post("/generar-cv", async (req, res) => {
     });
   }
 });
+
+app.listen(PORT, () => {
+  console.log(`Servidor escuchando en el puerto ${PORT}`);
+});
+
+// Función de limpieza (puedes ajustarla según tus necesidades)
+function limpiarDatos(datos) {
+  return datos || {};
+}
