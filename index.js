@@ -13,70 +13,61 @@ app.use(express.json());
 
 app.post("/generar-cv", (req, res) => {
   try {
-    const rawData = req.body;
-    console.log("Datos recibidos:", rawData);
+    const data = req.body;
 
-    const data = limpiarDatos(rawData);
-    console.log("Datos procesados:", data);
-
-    const templatePath = path.join(__dirname, "plantilla_cv_final_sin_errores.docx");
+    const templatePath = path.join(__dirname, "plantilla_cv_final_adecuada.docx");
 
     if (!fs.existsSync(templatePath)) {
-      throw new Error(`Archivo de plantilla no encontrado en: ${templatePath}. 
-        Directorio actual: ${__dirname}. 
-        Archivos disponibles: ${fs.readdirSync(__dirname).join(", ")}`);
+      throw new Error("No se encontró la plantilla DOCX en el servidor.");
     }
 
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-    });
+    const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+    // Adaptar campos anidados para experiencias, educaciones, idiomas
+    const experiencias = (data.experiencias || []).map(exp => ({
+      fecha: exp.fecha,
+      puestoExp: exp.puesto,
+      empleador: exp.empleador,
+      responsabilidades: exp.responsabilidades,
+      sector: exp.sector,
+    }));
+
+    const educaciones = (data.educaciones || []).map(edu => ({
+      fecha: edu.fecha,
+      titulo: edu.titulo,
+      institucion: edu.institucion,
+      nivel: edu.nivel,
+      materias: edu.materias,
+      logros: edu.logros,
+    }));
+
+    const idiomas = (data.idiomas || []).map(idio => ({
+      idioma: idio.idioma,
+      nivelIdioma: `${idio.comprension}/${idio.hablado}/${idio.escrito}`,
+      certificado: idio.certificado,
+    }));
 
     const templateData = {
-      "First name(s) Surname(s)": data.nombre,
-      "Replace with house number, street name": data.direccion,
-      "[Phone Number]": data.telefono,
-      "[State personal website(s)]": data.website,
-      "Replace with type of IM service": data.mensajeria,
-      "Sex Enter sex": data.genero,
-      "Date of birth dd/mm/yyyy": data.fechaNacimiento,
-      "Nationality Enter nationality/-ies": data.nacionalidad,
-      "Replace with job applied for": data.puesto,
-      "personal statement": data.declaracionPersonal,
-
-      experiencias: Array.isArray(data.experiencias) ? data.experiencias.map(exp => ({
-        "dates (from - to)": exp.fecha,
-        "Replace with occupation or position held": exp.puesto,
-        "Replace with employer's name and locality": exp.empleador,
-        "Replace with main activities and responsibilities": exp.responsabilidades,
-        "Business or sector": exp.sector
-      })) : [],
-
-      educaciones: Array.isArray(data.educaciones) ? data.educaciones.map(edu => ({
-        "dates (from - to)": edu.fecha,
-        "Replace with qualification awarded": edu.titulo,
-        "Replace with education or training organisation's name": edu.institucion,
-        "EQF (or other) level": edu.nivel,
-        "principal subjects covered": edu.materias,
-        "Replace with expected achievements": edu.logros
-      })) : [],
-
-      idiomas: Array.isArray(data.idiomas) ? data.idiomas.map(idio => ({
-        "Replace with language": idio.idioma,
-        "Enter level": idio.comprension,
-        "Replace with name of language certificate": idio.certificado
-      })) : [],
-
-      "Communication skills": data.habilidades || "",
-      "Digital skills": "Basado en: " + (data.habilidades || ""),
-      foto: data.foto || data.secure_url || ""
+      nombre: data.nombre,
+      direccion: data.direccion,
+      telefono: data.telefono,
+      website: data.website,
+      mensajeria: data.mensajeria,
+      genero: data.genero,
+      fechaNacimiento: data.fechaNacimiento,
+      nacionalidad: data.nacionalidad,
+      puesto: data.puesto,
+      declaracionPersonal: data.declaracionPersonal,
+      habilidades: data.habilidades,
+      digitales: `Basado en: ${data.habilidades}`,
+      experiencias,
+      educaciones,
+      idiomas,
     };
 
-    // Renderizar directamente sin .resolveData()
     doc.render(templateData);
-
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
@@ -86,13 +77,10 @@ app.post("/generar-cv", (req, res) => {
 
     res.send(buffer);
   } catch (error) {
-    console.error("Error general:", error);
+    console.error("Error al generar el CV:", error);
     res.status(500).json({
       error: "Error al generar el CV",
       detalle: error.message,
-      rutaPlantilla: path.join(__dirname, "plantilla_cv_final_sin_errores.docx"),
-      directorioActual: __dirname,
-      archivosDisponibles: fs.readdirSync(__dirname),
     });
   }
 });
@@ -100,8 +88,3 @@ app.post("/generar-cv", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
-
-// Función de limpieza
-function limpiarDatos(datos) {
-  return datos || {};
-}
