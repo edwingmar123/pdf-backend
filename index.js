@@ -1,9 +1,6 @@
 const express = require("express");
 const fs = require("fs");
-const path = require("path");
-const Docxtemplater = require("docxtemplater");
-const PizZip = require("pizzip");
-const ImageModule = require("docxtemplater-image-module-free");
+const { Document, Packer, Paragraph, TextRun, ImageRun } = require("docx");
 const axios = require("axios");
 const cors = require("cors");
 
@@ -17,86 +14,67 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(__dirname, "plantilla_cv_final_simple_con_nombre.docx");
-
-    if (!fs.existsSync(templatePath)) {
-      throw new Error("No se encontró la plantilla DOCX en el servidor.");
+    let imageBuffer = null;
+    if (data.foto_pixar && data.foto_pixar !== "No disponible") {
+      try {
+        const response = await axios.get(data.foto_pixar, { responseType: "arraybuffer" });
+        imageBuffer = response.data;
+      } catch (error) {
+        console.error("Error descargando imagen:", error.message);
+        imageBuffer = null;
+      }
     }
 
-    const content = fs.readFileSync(templatePath, "binary");
-    const zip = new PizZip(content);
+    const children = [];
 
-    // Configuración para cargar imágenes de forma segura
-    const imageOpts = {
-      centered: false,
-      getImage: async function (tagValue) {
-        try {
-          const response = await axios.get(tagValue, {
-            responseType: "arraybuffer",
-          });
-          return response.data;
-        } catch (error) {
-          console.error("Error cargando imagen:", error.message);
-          // Si no se puede cargar la imagen, devolver un buffer vacío
-          return Buffer.from("");
-        }
-      },
-      getSize: function () {
-        return [150, 150];
-      },
-    };
+    if (imageBuffer) {
+      children.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              data: imageBuffer,
+              transformation: {
+                width: 150,
+                height: 150,
+              },
+            }),
+          ],
+          alignment: "center",
+        })
+      );
+    }
 
-    const imageModule = new ImageModule(imageOpts);
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: `\nPuesto: ${data.puesto || "No especificado"}`, bold: true }),
+          new TextRun({ text: `\nDirección: ${data.direccion || "No especificado"}` }),
+          new TextRun({ text: `\nTeléfono: ${data.telefono || "No especificado"}` }),
+          new TextRun({ text: `\nWebsite: ${data.website || "No especificado"}` }),
+          new TextRun({ text: `\nMensajería: ${data.mensajeria || "No especificado"}` }),
+          new TextRun({ text: `\nEmail: ${data.email || "No especificado"}` }),
+          new TextRun({ text: `\nGénero: ${data.genero || "No especificado"}` }),
+          new TextRun({ text: `\nNacionalidad: ${data.nacionalidad || "No especificado"}` }),
+        ],
+      })
+    );
 
-    const doc = new Docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      modules: [imageModule],
+    const doc = new Document({
+      sections: [{ properties: {}, children }],
     });
 
-    // Preparar datos con valores por defecto
-    const templateData = {
-      nombre: data.nombre || "No especificado",
-      FOTO_PIXAR: data.foto_pixar || "",
-      direccion: data.direccion || "No especificado",
-      telefono: data.telefono || "No especificado",
-      website: data.website || "No especificado",
-      mensajeria: data.mensajeria || "No especificado",
-      email: data.email || "No especificado",
-      genero: data.genero || "No especificado",
-      nacionalidad: data.nacionalidad || "No especificado",
-      puesto: data.puesto || "No especificado",
-    };
+    const buffer = await Packer.toBuffer(doc);
 
-    // Renderizar el documento
-    await doc.renderAsync(templateData);
-
-    const buffer = doc.getZip().generate({ type: "nodebuffer" });
-
-    res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": "attachment; filename=CV_Generado.docx",
-    });
+    res.setHeader("Content-Disposition", "attachment; filename=CV_Generado.docx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
     res.send(buffer);
   } catch (error) {
-    console.error("Error al generar el CV:", error);
-
-    // Manejo de error específico si es de plantilla
-    if (error.properties && error.properties.errors) {
-      return res.status(400).json({
-        error: "Error de plantilla",
-        detalles: error.properties.errors.map(err => err.explanation),
-      });
-    }
-
-    res.status(500).json({
-      error: "Error al generar el CV",
-      detalle: error.message,
-    });
+    console.error(error);
+    res.status(500).json({ message: "Error generando CV", error: error.message });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor escuchando en el puerto ${PORT}`);
+  console.log(`Servidor escuchando en puerto ${PORT}`);
 });
