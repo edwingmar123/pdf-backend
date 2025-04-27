@@ -17,7 +17,10 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(__dirname, "Documento .docx");
+    const templatePath = path.join(
+      __dirname,
+      "Documento .docx"
+    );
 
     if (!fs.existsSync(templatePath)) {
       throw new Error("No se encontró la plantilla DOCX en el servidor.");
