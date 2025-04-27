@@ -17,10 +17,7 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(
-      __dirname,
-      "PERSONAL INFORMATION.docx"
-    );
+    const templatePath = path.join(__dirname, "PERSONAL INFORMATION.docx");
 
     if (!fs.existsSync(templatePath)) {
       throw new Error("No se encontró la plantilla DOCX en el servidor.");
@@ -29,13 +26,20 @@ app.post("/generar-cv", async (req, res) => {
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
 
+    // Configuración para cargar imágenes de forma segura
     const imageOpts = {
       centered: false,
       getImage: async function (tagValue) {
-        const response = await axios.get(tagValue, {
-          responseType: "arraybuffer",
-        });
-        return response.data;
+        try {
+          const response = await axios.get(tagValue, {
+            responseType: "arraybuffer",
+          });
+          return response.data;
+        } catch (error) {
+          console.error("Error cargando imagen:", error.message);
+          // Si no se puede cargar la imagen, devolver un buffer vacío
+          return Buffer.from("");
+        }
       },
       getSize: function () {
         return [150, 150];
@@ -50,8 +54,9 @@ app.post("/generar-cv", async (req, res) => {
       modules: [imageModule],
     });
 
-    // Ahora solo enviamos lo que quieres
+    // Preparar datos con valores por defecto
     const templateData = {
+      nombre: data.nombre || "No especificado",
       FOTO_PIXAR: data.foto_pixar || "",
       direccion: data.direccion || "No especificado",
       telefono: data.telefono || "No especificado",
@@ -63,19 +68,28 @@ app.post("/generar-cv", async (req, res) => {
       puesto: data.puesto || "No especificado",
     };
 
+    // Renderizar el documento
     await doc.renderAsync(templateData);
 
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": "attachment; filename=CV_Generado.docx",
     });
 
     res.send(buffer);
   } catch (error) {
     console.error("Error al generar el CV:", error);
+
+    // Manejo de error específico si es de plantilla
+    if (error.properties && error.properties.errors) {
+      return res.status(400).json({
+        error: "Error de plantilla",
+        detalles: error.properties.errors.map(err => err.explanation),
+      });
+    }
+
     res.status(500).json({
       error: "Error al generar el CV",
       detalle: error.message,
