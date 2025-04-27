@@ -17,7 +17,10 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(__dirname, "plantilla_cv_final_corregida.docx");
+    const templatePath = path.join(
+      __dirname,
+      "plantilla_cv_final_corregida.docx"
+    );
 
     if (!fs.existsSync(templatePath)) {
       throw new Error("No se encontró la plantilla DOCX en el servidor.");
@@ -29,7 +32,9 @@ app.post("/generar-cv", async (req, res) => {
     const imageOpts = {
       centered: false,
       getImage: async function (tagValue) {
-        const response = await axios.get(tagValue, { responseType: "arraybuffer" });
+        const response = await axios.get(tagValue, {
+          responseType: "arraybuffer",
+        });
         return response.data;
       },
       getSize: function () {
@@ -56,7 +61,7 @@ app.post("/generar-cv", async (req, res) => {
       genero: data.genero || "No especificado",
       nacionalidad: data.nacionalidad || "No especificado",
       puesto: data.puesto || "No especificado",
-      habilidades: data.habilidades || "No especificado"
+      habilidades: data.habilidades || "No especificado",
     };
 
     await doc.renderAsync(templateData);
@@ -64,7 +69,8 @@ app.post("/generar-cv", async (req, res) => {
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": "attachment; filename=CV_Generado.docx",
     });
 
