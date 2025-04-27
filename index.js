@@ -22,23 +22,61 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    // Descargar imagen si existe
     let imageBuffer = null;
     if (data.foto_pixar && data.foto_pixar.startsWith("http")) {
       try {
+        console.log(`Intentando descargar imagen desde: ${data.foto_pixar}`);
         const response = await axios.get(data.foto_pixar, {
           responseType: "arraybuffer",
+          timeout: 10000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          }
         });
-        imageBuffer = response.data;
+
+        if (response.status === 200 && response.data) {
+            imageBuffer = response.data;
+            console.log("Imagen descargada exitosamente.");
+        } else {
+            console.error(`Error descargando imagen: Status ${response.status}, Respuesta recibida pero sin datos válidos.`);
+            imageBuffer = null;
+        }
       } catch (error) {
-        console.error("Error descargando imagen:", error.message);
+        console.error("------------------------------------------");
+        console.error("¡FALLO AL DESCARGAR LA IMAGEN!");
+        console.error("URL que falló:", data.foto_pixar);
+
+        if (error.response) {
+          console.error("Status Code:", error.response.status);
+          console.error("Headers de Respuesta:", error.response.headers);
+          let responseData = error.response.data;
+           try {
+             if (responseData instanceof ArrayBuffer) {
+               responseData = Buffer.from(responseData).toString('utf-8');
+             }
+           } catch (e) { /* Ignorar si no se puede convertir */ }
+          console.error("Datos de Respuesta:", responseData);
+
+        } else if (error.request) {
+          console.error("No se recibió respuesta del servidor.");
+        } else {
+          console.error("Error en configuración de Axios:", error.message);
+        }
+        console.error("Código de Error (si existe):", error.code);
+        console.error("------------------------------------------");
+
         imageBuffer = null;
       }
+    } else {
+        if (data.foto_pixar) {
+            console.log(`Imagen omitida: La URL '${data.foto_pixar}' no comienza con 'http'.`);
+        } else {
+            console.log("Imagen omitida: No se proporcionó URL en foto_pixar.");
+        }
     }
 
     const docSections = [];
 
-    // Foto y Nombre
     if (imageBuffer) {
       docSections.push(
         new Paragraph({
@@ -53,7 +91,6 @@ app.post("/generar-cv", async (req, res) => {
       );
     }
 
-    // Nombre y Puesto
     docSections.push(
       new Paragraph({
         text: data.nombre || "Nombre No especificado",
@@ -68,7 +105,6 @@ app.post("/generar-cv", async (req, res) => {
       })
     );
 
-    // Datos Personales
     docSections.push(
       new Paragraph({
         text: "📄 Datos Personales",
@@ -84,7 +120,6 @@ app.post("/generar-cv", async (req, res) => {
       crearLineaInfo("Nacionalidad", data.nacionalidad)
     );
 
-    // Declaración Personal
     docSections.push(
       new Paragraph({
         text: "📝 Declaración Personal",
@@ -96,7 +131,6 @@ app.post("/generar-cv", async (req, res) => {
       })
     );
 
-    // Habilidades
     docSections.push(
       new Paragraph({
         text: "🛠️ Habilidades",
@@ -108,12 +142,10 @@ app.post("/generar-cv", async (req, res) => {
       })
     );
 
-    // 🔥 Aquí corregimos para evitar errores si NO es array 🔥
     const experiencias = Array.isArray(data.experiencias) ? data.experiencias : [];
     const educaciones = Array.isArray(data.educaciones) ? data.educaciones : [];
     const idiomas = Array.isArray(data.idiomas) ? data.idiomas : [];
 
-    // Experiencia Laboral
     docSections.push(
       new Paragraph({
         text: "💼 Experiencia Laboral",
@@ -139,7 +171,6 @@ app.post("/generar-cv", async (req, res) => {
       );
     });
 
-    // Formación Académica
     docSections.push(
       new Paragraph({
         text: "🎓 Formación Académica",
@@ -167,7 +198,6 @@ app.post("/generar-cv", async (req, res) => {
       );
     });
 
-    // Idiomas
     docSections.push(
       new Paragraph({ text: "🌍 Idiomas", heading: HeadingLevel.HEADING_2 })
     );
@@ -190,7 +220,6 @@ app.post("/generar-cv", async (req, res) => {
       );
     });
 
-    // Crear documento
     const doc = new Document({
       sections: [{ properties: {}, children: docSections }],
     });
@@ -220,7 +249,6 @@ app.listen(PORT, () => {
   console.log(`Servidor escuchando en el puerto ${PORT}`);
 });
 
-// Función de ayuda
 function crearLineaInfo(label, value) {
   return new Paragraph({
     spacing: { after: 100 },
