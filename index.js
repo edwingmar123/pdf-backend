@@ -19,7 +19,7 @@ app.post("/generar-cv", async (req, res) => {
 
     const templatePath = path.join(
       __dirname,
-      "Documento .docx"
+      "plantilla_cv_simple_limpio.docx"
     );
 
     if (!fs.existsSync(templatePath)) {
