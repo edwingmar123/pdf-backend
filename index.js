@@ -19,7 +19,7 @@ app.post("/generar-cv", async (req, res) => {
 
     const templatePath = path.join(
       __dirname,
-      "plantilla_cv_super_elegante.docx"
+      "plantilla_cv_super_elegante_sin_habilidades.docx"
     );
 
     if (!fs.existsSync(templatePath)) {
@@ -61,7 +61,6 @@ app.post("/generar-cv", async (req, res) => {
       genero: data.genero || "No especificado",
       nacionalidad: data.nacionalidad || "No especificado",
       puesto: data.puesto || "No especificado",
-      habilidades: data.habilidades || "No especificado",
     };
 
     await doc.renderAsync(templateData);
