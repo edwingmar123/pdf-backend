@@ -108,6 +108,11 @@ app.post("/generar-cv", async (req, res) => {
       })
     );
 
+    // 🔥 Aquí corregimos para evitar errores si NO es array 🔥
+    const experiencias = Array.isArray(data.experiencias) ? data.experiencias : [];
+    const educaciones = Array.isArray(data.educaciones) ? data.educaciones : [];
+    const idiomas = Array.isArray(data.idiomas) ? data.idiomas : [];
+
     // Experiencia Laboral
     docSections.push(
       new Paragraph({
@@ -115,7 +120,7 @@ app.post("/generar-cv", async (req, res) => {
         heading: HeadingLevel.HEADING_2,
       })
     );
-    (data.experiencias || []).forEach((exp) => {
+    experiencias.forEach((exp) => {
       docSections.push(
         new Paragraph({
           text: `• ${exp.puesto || "Puesto no especificado"} en ${
@@ -141,7 +146,7 @@ app.post("/generar-cv", async (req, res) => {
         heading: HeadingLevel.HEADING_2,
       })
     );
-    (data.educaciones || []).forEach((edu) => {
+    educaciones.forEach((edu) => {
       docSections.push(
         new Paragraph({
           text: `• ${edu.titulo || "Título no especificado"} (${
@@ -166,7 +171,7 @@ app.post("/generar-cv", async (req, res) => {
     docSections.push(
       new Paragraph({ text: "🌍 Idiomas", heading: HeadingLevel.HEADING_2 })
     );
-    (data.idiomas || []).forEach((id) => {
+    idiomas.forEach((id) => {
       docSections.push(
         new Paragraph({ text: `• ${id.idioma || "Idioma no especificado"}` }),
         new Paragraph({
