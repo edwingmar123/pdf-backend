@@ -17,7 +17,10 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(__dirname, "plantilla_cv_final_simple_con_nombre(1).docx");
+    const templatePath = path.join(
+      __dirname,
+      "plantilla_cv_final_simple_con_nombre.docx"
+    );
 
     if (!fs.existsSync(templatePath)) {
       throw new Error("No se encontró la plantilla DOCX en el servidor.");
@@ -74,7 +77,8 @@ app.post("/generar-cv", async (req, res) => {
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type":
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": "attachment; filename=CV_Generado.docx",
     });
 
@@ -86,7 +90,7 @@ app.post("/generar-cv", async (req, res) => {
     if (error.properties && error.properties.errors) {
       return res.status(400).json({
         error: "Error de plantilla",
-        detalles: error.properties.errors.map(err => err.explanation),
+        detalles: error.properties.errors.map((err) => err.explanation),
       });
     }
 
