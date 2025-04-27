@@ -61,7 +61,6 @@ app.post("/generar-cv", async (req, res) => {
       genero: data.genero || "No especificado",
       nacionalidad: data.nacionalidad || "No especificado",
       puesto: data.puesto || "No especificado",
-      habilidades: data.habilidades || "No especificado",
     };
 
     await doc.renderAsync(templateData);
