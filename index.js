@@ -17,10 +17,7 @@ app.post("/generar-cv", async (req, res) => {
   try {
     const data = req.body;
 
-    const templatePath = path.join(
-      __dirname,
-      "plantilla_cv_final_con_imagen.docx"
-    );
+    const templatePath = path.join(__dirname, "plantilla_cv_final_corregida.docx");
 
     if (!fs.existsSync(templatePath)) {
       throw new Error("No se encontró la plantilla DOCX en el servidor.");
@@ -29,17 +26,14 @@ app.post("/generar-cv", async (req, res) => {
     const content = fs.readFileSync(templatePath, "binary");
     const zip = new PizZip(content);
 
-    
     const imageOpts = {
       centered: false,
       getImage: async function (tagValue) {
-        const response = await axios.get(tagValue, {
-          responseType: "arraybuffer",
-        });
+        const response = await axios.get(tagValue, { responseType: "arraybuffer" });
         return response.data;
       },
       getSize: function () {
-        return [150, 150]; 
+        return [150, 150];
       },
     };
 
@@ -51,57 +45,26 @@ app.post("/generar-cv", async (req, res) => {
       modules: [imageModule],
     });
 
-    
-    const experiencias = (data.experiencias || []).map((exp) => ({
-      fecha: exp.fecha,
-      puestoExp: exp.puesto,
-      empleador: exp.empleador,
-      responsabilidades: exp.responsabilidades,
-      sector: exp.sector,
-    }));
-
-    const educaciones = (data.educaciones || []).map((edu) => ({
-      fecha: edu.fecha,
-      titulo: edu.titulo,
-      institucion: edu.institucion,
-      nivel: edu.nivel,
-      materias: edu.materias,
-      logros: edu.logros,
-    }));
-
-    const idiomas = (data.idiomas || []).map((idio) => ({
-      idioma: idio.idioma,
-      nivelIdioma: `${idio.comprension}/${idio.hablado}/${idio.escrito}`,
-      certificado: idio.certificado,
-    }));
-
+    // Ahora solo enviamos lo que quieres
     const templateData = {
-      nombre: data.nombre,
-      direccion: data.direccion,
-      telefono: data.telefono,
-      website: data.website,
-      mensajeria: data.mensajeria,
-      genero: data.genero,
-      fechaNacimiento: data.fechaNacimiento,
-      nacionalidad: data.nacionalidad,
-      puesto: data.puesto,
-      declaracionPersonal: data.declaracionPersonal,
-      habilidades: data.habilidades,
-      digitales: `Basado en: ${data.habilidades}`,
-      experiencias,
-      educaciones,
-      idiomas,
-      image: data.foto_pixar || "", 
+      FOTO_PIXAR: data.foto_pixar || "",
+      direccion: data.direccion || "No especificado",
+      telefono: data.telefono || "No especificado",
+      website: data.website || "No especificado",
+      mensajeria: data.mensajeria || "No especificado",
+      email: data.email || "No especificado",
+      genero: data.genero || "No especificado",
+      nacionalidad: data.nacionalidad || "No especificado",
+      puesto: data.puesto || "No especificado",
+      habilidades: data.habilidades || "No especificado"
     };
 
-    
     await doc.renderAsync(templateData);
 
     const buffer = doc.getZip().generate({ type: "nodebuffer" });
 
     res.set({
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       "Content-Disposition": "attachment; filename=CV_Generado.docx",
     });
 
