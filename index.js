@@ -31,12 +31,11 @@ app.post("/generar-cv", async (req, res) => {
       try {
         const response = await axios.get(imageUrlAttempted, {
           responseType: "arraybuffer",
-          timeout: 15000, 
+          timeout: 15000,
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
           },
           validateStatus: function (status) {
-            
             return status < 500;
           }
         });
@@ -54,7 +53,7 @@ app.post("/generar-cv", async (req, res) => {
               if (responseData instanceof ArrayBuffer) {
                 responseData = Buffer.from(responseData).toString('utf-8');
               }
-            } catch (e) { /* Ignorar si no se puede convertir */ }
+            } catch (e) { /* Ignorar */ }
             console.error("Datos de Respuesta (si aplica):", responseData);
             console.error(`------------------------------------------`);
             imageBuffer = null;
@@ -117,7 +116,6 @@ app.post("/generar-cv", async (req, res) => {
          }
          console.error("Error de librería 'docx':", imageError.message);
          console.error("------------------------------------------");
-        
       }
     } else {
       console.log("No se añadió imagen al DOCX porque no se pudo obtener o procesar.");
@@ -252,6 +250,12 @@ app.post("/generar-cv", async (req, res) => {
       );
     });
 
+    console.log("Preparando para crear el objeto Document de docx...");
+    const doc = new Document({
+        sections: [{ properties: {}, children: docSections }],
+    });
+    console.log("Objeto Document creado exitosamente.");
+
     console.log("Generando buffer del documento DOCX...");
     const buffer = await Packer.toBuffer(doc);
     console.log("Buffer DOCX generado.");
@@ -271,10 +275,10 @@ app.post("/generar-cv", async (req, res) => {
   } catch (error) {
     console.error("------------------------------------------");
     console.error("Error FATAL generando el CV (Bloque Catch Principal):");
-    console.error(error); // Imprime el objeto de error completo
+    console.error(error);
     console.error("Mensaje:", error.message);
     console.error("------------------------------------------");
-    // Asegurarse de no enviar una respuesta parcial si falla aquí
+
     if (!res.headersSent) {
       res.status(500).json({
         message: "Error fatal generando el CV",
