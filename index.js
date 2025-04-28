@@ -23,28 +23,46 @@ app.post("/generar-cv", async (req, res) => {
     const data = req.body;
 
     let imageBuffer = null;
+    let imageUrlAttempted = null;
+
     if (data.foto_pixar && data.foto_pixar.startsWith("http")) {
+      imageUrlAttempted = data.foto_pixar;
+      console.log(`Intentando descargar imagen desde: ${imageUrlAttempted}`);
       try {
-        console.log(`Intentando descargar imagen desde: ${data.foto_pixar}`);
-        const response = await axios.get(data.foto_pixar, {
+        const response = await axios.get(imageUrlAttempted, {
           responseType: "arraybuffer",
-          timeout: 10000,
+          timeout: 15000, 
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+          },
+          validateStatus: function (status) {
+            
+            return status < 500;
           }
         });
 
         if (response.status === 200 && response.data) {
             imageBuffer = response.data;
-            console.log("Imagen descargada exitosamente.");
+            console.log(`Imagen descargada exitosamente (Status: ${response.status}) desde ${imageUrlAttempted}`);
         } else {
-            console.error(`Error descargando imagen: Status ${response.status}, Respuesta recibida pero sin datos válidos.`);
+            console.error(`------------------------------------------`);
+            console.error(`¡FALLO AL DESCARGAR O PROCESAR IMAGEN! (Respuesta recibida pero no OK)`);
+            console.error(`URL: ${imageUrlAttempted}`);
+            console.error(`Status Code recibido: ${response.status}`);
+            let responseData = response.data;
+            try {
+              if (responseData instanceof ArrayBuffer) {
+                responseData = Buffer.from(responseData).toString('utf-8');
+              }
+            } catch (e) { /* Ignorar si no se puede convertir */ }
+            console.error("Datos de Respuesta (si aplica):", responseData);
+            console.error(`------------------------------------------`);
             imageBuffer = null;
         }
       } catch (error) {
         console.error("------------------------------------------");
-        console.error("¡FALLO AL DESCARGAR LA IMAGEN!");
-        console.error("URL que falló:", data.foto_pixar);
+        console.error("¡FALLO CRÍTICO AL INTENTAR DESCARGAR LA IMAGEN! (Error en Axios/Red)");
+        console.error("URL que falló:", imageUrlAttempted);
 
         if (error.response) {
           console.error("Status Code:", error.response.status);
@@ -54,22 +72,21 @@ app.post("/generar-cv", async (req, res) => {
              if (responseData instanceof ArrayBuffer) {
                responseData = Buffer.from(responseData).toString('utf-8');
              }
-           } catch (e) { /* Ignorar si no se puede convertir */ }
+           } catch (e) { /* Ignorar */ }
           console.error("Datos de Respuesta:", responseData);
-
         } else if (error.request) {
           console.error("No se recibió respuesta del servidor.");
         } else {
           console.error("Error en configuración de Axios:", error.message);
         }
         console.error("Código de Error (si existe):", error.code);
+        console.error("Mensaje de Error:", error.message);
         console.error("------------------------------------------");
-
         imageBuffer = null;
       }
     } else {
         if (data.foto_pixar) {
-            console.log(`Imagen omitida: La URL '${data.foto_pixar}' no comienza con 'http'.`);
+            console.log(`Imagen omitida: La URL proporcionada no comienza con 'http'. URL: ${data.foto_pixar}`);
         } else {
             console.log("Imagen omitida: No se proporcionó URL en foto_pixar.");
         }
@@ -78,17 +95,32 @@ app.post("/generar-cv", async (req, res) => {
     const docSections = [];
 
     if (imageBuffer) {
-      docSections.push(
-        new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [
-            new ImageRun({
-              data: imageBuffer,
-              transformation: { width: 150, height: 150 },
-            }),
-          ],
-        })
-      );
+      try {
+        console.log(`Intentando añadir imagen (tamaño buffer: ${imageBuffer.byteLength}) al DOCX.`);
+        docSections.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                data: imageBuffer,
+                transformation: { width: 150, height: 150 },
+              }),
+            ],
+          })
+        );
+        console.log("Imagen añadida a las secciones del DOCX.");
+      } catch(imageError) {
+         console.error("------------------------------------------");
+         console.error("¡ERROR AL PROCESAR/AÑADIR LA IMAGEN AL DOCX CON LA LIBRERÍA 'docx'!");
+         if (imageUrlAttempted) {
+             console.error("Imagen descargada desde:", imageUrlAttempted);
+         }
+         console.error("Error de librería 'docx':", imageError.message);
+         console.error("------------------------------------------");
+        
+      }
+    } else {
+      console.log("No se añadió imagen al DOCX porque no se pudo obtener o procesar.");
     }
 
     docSections.push(
@@ -220,11 +252,9 @@ app.post("/generar-cv", async (req, res) => {
       );
     });
 
-    const doc = new Document({
-      sections: [{ properties: {}, children: docSections }],
-    });
-
+    console.log("Generando buffer del documento DOCX...");
     const buffer = await Packer.toBuffer(doc);
+    console.log("Buffer DOCX generado.");
 
     res.setHeader(
       "Content-Disposition",
@@ -236,12 +266,21 @@ app.post("/generar-cv", async (req, res) => {
     );
 
     res.send(buffer);
+    console.log("Respuesta DOCX enviada.");
+
   } catch (error) {
-    console.error("Error generando el CV:", error);
-    res.status(500).json({
-      message: "Error generando el CV",
-      detalle: error.message,
-    });
+    console.error("------------------------------------------");
+    console.error("Error FATAL generando el CV (Bloque Catch Principal):");
+    console.error(error); // Imprime el objeto de error completo
+    console.error("Mensaje:", error.message);
+    console.error("------------------------------------------");
+    // Asegurarse de no enviar una respuesta parcial si falla aquí
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: "Error fatal generando el CV",
+        detalle: error.message,
+      });
+    }
   }
 });
 
