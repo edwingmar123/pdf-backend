@@ -15,6 +15,7 @@
         "docxtemplater-image-module-free": "^1.1.1",
         "express": "^4.21.2",
         "fast-xml-parser": "^5.2.5",
-        "pizzip": "^3.1.8"
+        "pizzip": "^3.1.8",
+        "uuid": "^11.1.0"
     }
 }
