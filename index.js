@@ -1,5 +1,4 @@
 const express = require("express");
-const fs = require("fs");
 const {
   Document,
   Packer,
@@ -9,11 +8,6 @@ const {
   HeadingLevel,
   AlignmentType,
   BorderStyle,
-  ShadingType,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType
 } = require("docx");
 const axios = require("axios");
 const cors = require("cors");
@@ -29,68 +23,46 @@ app.post("/generar-itinerario", async (req, res) => {
     const ciudades = req.body;
     const docSections = [];
 
-    // Portada con efecto de gradiente
+    // Título principal
     docSections.push(new Paragraph({
       children: [
         new TextRun({
-          text: "✈️ ITINERARIO DE VIAJE",
+          text: "🌍 Itinerario de Viaje",
           bold: true,
-          color: "FFFFFF",
-          size: 48,
-          font: "Arial",
+          color: "1F618D",
+          size: 60,
         })
       ],
-      heading: HeadingLevel.HEADING_1,
+      heading: HeadingLevel.TITLE,
       alignment: AlignmentType.CENTER,
-      shading: {
-        type: ShadingType.GRADIENT,
-        color: "1A5276",
-        fill: "2E86C1",
-        angle: 180
-      },
-      spacing: { before: 600, after: 300 },
-      border: {
-        bottom: { style: BorderStyle.DOUBLE, size: 12, color: "F1C40F" }
-      }
-    }));
-
-    docSections.push(new Paragraph({
-      text: "La guía definitiva para tu aventura",
-      alignment: AlignmentType.CENTER,
-      color: "FFFFFF",
-      size: 28,
-      shading: { type: ShadingType.SOLID, color: "1A5276" },
       spacing: { after: 600 },
     }));
 
-    // Sección para cada ciudad
     for (const { ciudad, imagen_url, recomendaciones } of ciudades) {
-      // Cabecera con efecto de cinta
+      // Slide separator
+      docSections.push(new Paragraph({
+        children: [new TextRun({ text: "".padEnd(70, " ") })],
+        border: {
+          bottom: { style: BorderStyle.DOUBLE, size: 12, color: "5DADE2" },
+        },
+        spacing: { after: 300 },
+      }));
+
+      // Ciudad - Estilo título
       docSections.push(new Paragraph({
         children: [
           new TextRun({
-            text: `📍 ${ciudad.toUpperCase()}`,
+            text: `📌 ${ciudad}`,
             bold: true,
-            size: 32,
-            color: "FFFFFF",
-            font: "Arial",
-          })
+            size: 48,
+            color: "154360",
+          }),
         ],
-        heading: HeadingLevel.HEADING_2,
-        shading: { 
-          type: ShadingType.GRADIENT,
-          color: "E74C3C",
-          fill: "C0392B",
-          angle: 90
-        },
-        spacing: { before: 400, after: 200 },
-        border: { 
-          top: { style: BorderStyle.SINGLE, size: 4, color: "F1C40F" },
-          bottom: { style: BorderStyle.SINGLE, size: 4, color: "F1C40F" }
-        }
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 300 },
       }));
 
-      // Imagen con marco decorativo
+      // Imagen de la ciudad
       if (imagen_url && imagen_url.startsWith("http")) {
         try {
           const imageResp = await axios.get(imagen_url, {
@@ -105,114 +77,51 @@ app.post("/generar-itinerario", async (req, res) => {
               new ImageRun({
                 data: imageResp.data,
                 transformation: { width: 500, height: 300 },
-                border: {
-                  top: { style: BorderStyle.SINGLE, size: 8, color: "F1C40F" },
-                  bottom: { style: BorderStyle.SINGLE, size: 8, color: "F1C40F" },
-                  left: { style: BorderStyle.SINGLE, size: 8, color: "F1C40F" },
-                  right: { style: BorderStyle.SINGLE, size: 8, color: "F1C40F" },
-                },
               }),
             ],
-            spacing: { after: 200 },
+            spacing: { after: 300 },
           }));
         } catch (error) {
-          console.warn(`⚠ No se pudo insertar imagen de ${ciudad}`);
-          // Placeholder elegante en lugar de imagen
-          docSections.push(new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new TextRun({
-                text: `[Imagen de ${ciudad}]`,
-                color: "95A5A6",
-                italic: true,
-                size: 24,
-              })
-            ],
-            shading: { type: ShadingType.SOLID, color: "F9E79F" },
-            spacing: { after: 200 },
-          }));
+          console.warn(`⚠ No se pudo insertar imagen para ${ciudad}`);
         }
       }
 
-      // Recomendaciones en formato tarjeta
+      // Subtítulo
       docSections.push(new Paragraph({
-        text: "🌟 EXPERIENCIAS IMPERDIBLES",
-        bold: true,
-        color: "1A5276",
-        size: 26,
-        shading: { type: ShadingType.SOLID, color: "D6EAF8" },
-        spacing: { before: 100, after: 150 },
+        children: [
+          new TextRun({
+            text: "✨ Recomendaciones:",
+            bold: true,
+            color: "1A5276",
+            size: 30,
+            underline: {},
+          })
+        ],
+        spacing: { after: 200 },
       }));
 
-      // Lista de recomendaciones con viñetas mejoradas
+      // Lista de recomendaciones
       (recomendaciones || []).forEach((reco, i) => {
         docSections.push(new Paragraph({
           children: [
             new TextRun({
-              text: "★ ",
-              color: "F1C40F",
-              size: 28,
-            }),
-            new TextRun({
-              text: reco,
-              size: 24,
-              color: "212F3C",
+              text: `👉 ${reco}`,
+              size: 26,
+              color: "283747",
             })
           ],
-          spacing: { after: 120 },
+          spacing: { after: 150 },
         }));
       });
 
-      // Separador decorativo
-      docSections.push(new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            text: "❖❖❖",
-            color: "3498DB",
-            size: 28,
-          })
-        ],
-        spacing: { before: 300, after: 300 },
-      }));
+      // Espacio final
+      docSections.push(new Paragraph({ text: "", spacing: { after: 500 } }));
     }
-
-    // Sección final
-    docSections.push(new Paragraph({
-      text: "¡Que tengas un viaje inolvidable!",
-      alignment: AlignmentType.CENTER,
-      size: 28,
-      color: "27AE60",
-      bold: true,
-      spacing: { before: 400 },
-    }));
-
-    docSections.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({
-          text: "El equipo de TravelExperts",
-          color: "7F8C8D",
-          italic: true,
-          size: 22,
-        })
-      ],
-      spacing: { after: 400 },
-    }));
 
     const doc = new Document({
       sections: [
         {
-          properties: {
-            page: {
-              margin: {
-                top: 700,
-                bottom: 700,
-                right: 700,
-                left: 700,
-              }
-            }
-          },
+          properties: {},
           children: docSections,
         },
       ],
@@ -220,16 +129,16 @@ app.post("/generar-itinerario", async (req, res) => {
 
     const buffer = await Packer.toBuffer(doc);
 
-    res.setHeader("Content-Disposition", "attachment; filename=Itinerario.docx");
+    res.setHeader("Content-Disposition", "attachment; filename=itinerario.docx");
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.send(buffer);
-    console.log("✔ Documento enviado correctamente");
+    console.log("✅ Documento enviado con diseño atractivo");
   } catch (error) {
     console.error("❌ Error generando el itinerario:", error);
     res.status(500).json({ message: "Error al generar el itinerario", error: error.message });
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
   console.log(`🟢 Servidor escuchando en el puerto ${PORT}`);
 });
