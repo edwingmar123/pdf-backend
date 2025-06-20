@@ -104,7 +104,7 @@ app.post("/generar-itinerario", async (req, res) => {
     for (const { ciudad, imagen_url, recomendaciones } of ciudades) {
       // Ancla para el índice
       docSections.push(new Paragraph({
-        children: [new TextRun({ text: "", id: ciudad.replace(/\s+/g, '_') }]
+        children: [new TextRun({ text: "", id: ciudad.replace(/\s+/g, '_') })]
       }));
 
       // Cabecera con efecto de cinta
