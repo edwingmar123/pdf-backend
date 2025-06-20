@@ -330,6 +330,7 @@ app.post("/generar-itinerario", async (req, res) => {
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, () => {
+
   console.log(`🟢 Servidor escuchando en el puerto ${PORT}`);
 });
